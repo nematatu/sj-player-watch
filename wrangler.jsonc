@@ -6,13 +6,19 @@
 	"$schema": "node_modules/wrangler/config-schema.json",
 	"name": "sj-player-watch",
 	"main": "src/index.ts",
-	"compatibility_date": "2026-08-31",
+	"compatibility_date": "2026-09-10",
+	"kv_namespaces": [
+		{
+			"binding": "WATCH_STATE",
+			"id": "5e7e1f9888304c96bdeaa1b9ddc0f83e"
+		}
+	],
 	"observability": {
 		"enabled": true
 	},
 	"triggers": {
 		"crons": [
-			"* * * * *"
+			"17 */3 * * *"
 		]
 	},
 	"upload_source_maps": true

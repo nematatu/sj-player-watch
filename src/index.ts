@@ -1,40 +1,51 @@
-/**
- * Welcome to Cloudflare Workers!
- *
- * This is a template for a Scheduled Worker: a Worker that can run on a
- * configurable interval:
- * https://developers.cloudflare.com/workers/platform/triggers/cron-triggers/
- *
- * - Run `npm run dev` in your terminal to start a development server
- * - Run `curl "http://localhost:8787/__scheduled?cron=*+*+*+*+*"` to see your Worker in action
- * - Run `npm run deploy` to publish your Worker
- *
- * Bind resources to your Worker in `wrangler.jsonc`. After adding bindings, a type definition for the
- * `Env` object can be regenerated with `npm run cf-typegen`.
- *
- * Learn more at https://developers.cloudflare.com/workers/
- */
+import { diffPlayers, hasChanges, type Player } from "./diff";
+import { notify } from "./notify";
+import { discoverTeams, extractPlayers, fetchHtml, type Team } from "./scrape";
+
+export type StoredState = { version: 1; teamName: string; url: string; players: Player[]; updatedAt: string };
+export function isInitialState(state: StoredState | null): boolean { return state === null; }
+
+async function monitorTeam(team: Team, env: Env): Promise<void> {
+	try {
+		const players = await extractPlayers(await fetchHtml(team.url));
+		const key = `team:${team.id}`;
+		const previous = await env.WATCH_STATE.get<StoredState>(key, "json");
+		const state: StoredState = { version: 1, teamName: team.name, url: team.url, players, updatedAt: new Date().toISOString() };
+		if (!previous) {
+			await env.WATCH_STATE.put(key, JSON.stringify(state));
+			console.log("baseline saved", { teamName: team.name, url: team.url, players: players.length });
+			return;
+		}
+		const diff = diffPlayers(previous.players, players);
+		if (!hasChanges(diff)) return;
+		await notify(env.NTFY_TOPIC, team.name, team.url, diff);
+		await env.WATCH_STATE.put(key, JSON.stringify(state));
+		console.log("change notified", { teamName: team.name, url: team.url, added: diff.added.length, removed: diff.removed.length });
+	} catch (error) {
+		console.error("team monitoring failed", { teamName: team.name, url: team.url, error: error instanceof Error ? error.message : String(error) });
+	}
+}
+
+async function runWithConcurrency<T>(items: T[], limit: number, task: (item: T) => Promise<void>): Promise<void> {
+	let next = 0;
+	await Promise.all(Array.from({ length: Math.min(limit, items.length) }, async () => {
+		while (next < items.length) await task(items[next++]);
+	}));
+}
+
+export async function runMonitor(env: Env): Promise<void> {
+	const teams = await discoverTeams();
+	console.log("teams discovered", { count: teams.length });
+	await runWithConcurrency(teams, 3, (team) => monitorTeam(team, env));
+}
 
 export default {
-	async fetch(req) {
-		const url = new URL(req.url);
-		url.pathname = '/__scheduled';
-		url.searchParams.append('cron', '* * * * *');
-		return new Response(`To test the scheduled handler, ensure you have used the "--test-scheduled" then try running "curl ${url.href}".`);
+	async fetch(request): Promise<Response> {
+		const url = new URL(request.url);
+		if (request.method !== "GET" || url.pathname !== "/") return new Response("Not Found", { status: 404 });
+		return Response.json({ status: "ok", service: "sj-league-watch" });
 	},
-
-	// The scheduled handler is invoked at the interval set in our wrangler.jsonc's
-	// [[triggers]] configuration.
-	async scheduled(event, env, ctx): Promise<void> {
-		// A Cron Trigger can make requests to other endpoints on the Internet,
-		// publish to a Queue, query a D1 Database, and much more.
-		//
-		// We'll keep it simple and make an API call to a Cloudflare API:
-		let resp = await fetch('https://api.cloudflare.com/client/v4/ips');
-		let wasSuccessful = resp.ok ? 'success' : 'fail';
-
-		// You could store this result in KV, write to a D1 Database, or publish to a Queue.
-		// In this template, we'll just log the result:
-		console.log(`trigger fired at ${event.cron}: ${wasSuccessful}`);
+	async scheduled(_controller, env, ctx): Promise<void> {
+		ctx.waitUntil(runMonitor(env).catch((error) => console.error("monitoring run failed", { error: error instanceof Error ? error.message : String(error) })));
 	},
 } satisfies ExportedHandler<Env>;
