@@ -17,5 +17,9 @@ export async function notify(topic: string, teamName: string, url: string, diff:
 		body: notificationBody(teamName, diff),
 		signal: AbortSignal.timeout(10_000),
 	});
-	if (!response.ok) throw new Error(`ntfy HTTP ${response.status} ${response.statusText}`);
+	if (!response.ok) {
+		const body = (await response.text()).slice(0, 500);
+		const retryAfter = response.headers.get("Retry-After");
+		throw new Error(`ntfy HTTP ${response.status} ${response.statusText}; body=${body || "empty"}; retryAfter=${retryAfter || "none"}`);
+	}
 }

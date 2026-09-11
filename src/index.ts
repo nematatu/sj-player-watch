@@ -18,8 +18,8 @@ async function monitorTeam(team: Team, env: Env): Promise<void> {
 		}
 		const diff = diffPlayers(previous.players, players);
 		if (!hasChanges(diff)) return;
-		await notify(env.NTFY_TOPIC, team.name, team.url, diff);
 		await env.WATCH_STATE.put(key, JSON.stringify(state));
+		await notify(env.NTFY_TOPIC, team.name, team.url, diff);
 		console.log("change notified", { teamName: team.name, url: team.url, added: diff.added.length, removed: diff.removed.length });
 	} catch (error) {
 		console.error("team monitoring failed", { teamName: team.name, url: team.url, error: error instanceof Error ? error.message : String(error) });
