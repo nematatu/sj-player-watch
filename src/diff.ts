@@ -11,7 +11,7 @@ export function normalizePlayer(player: Player): Player {
 	return number ? { name, number } : { name };
 }
 
-export function playerKey(player: Player): string {
+function playerKey(player: Player): string {
 	return `${player.name}\u0000${player.number ?? ""}`;
 }
 

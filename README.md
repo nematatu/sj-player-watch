@@ -14,7 +14,7 @@ bunx wrangler login
 bunx wrangler kv namespace create WATCH_STATE
 ```
 
-`wrangler.jsonc`の`kv_namespaces[0].id`にある32桁のゼロを、上のコマンドで表示されたnamespace IDへ置換します。その後、推測では困難な長いtopic名を決めてSecretへ登録します。
+作成されたIDを`wrangler.jsonc`の`kv_namespaces[0].id`へ設定します。その後、推測されにくい長いtopic名を決めてSecretへ登録します。
 
 ```bash
 bunx wrangler secret put NTFY_TOPIC

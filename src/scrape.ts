@@ -1,6 +1,6 @@
 import { normalizePlayers, normalizeText, type Player } from "./diff";
 
-export const TEAM_LIST_URLS = [
+const TEAM_LIST_URLS = [
 	"https://www.badminton.or.jp/sj-league/team/sj",
 	"https://www.badminton.or.jp/sj-league/team/sj?gender=female",
 ] as const;

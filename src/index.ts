@@ -3,7 +3,7 @@ import { notify } from "./notify";
 import { discoverTeams, extractPlayers, fetchHtml, type Team } from "./scrape";
 
 export type StoredState = { version: 1; teamName: string; url: string; players: Player[]; updatedAt: string };
-export function isInitialState(state: StoredState | null): boolean { return state === null; }
+export function isInitialState(state: StoredState | null): state is null { return state === null; }
 
 async function monitorTeam(team: Team, env: Env): Promise<void> {
 	try {
@@ -11,7 +11,7 @@ async function monitorTeam(team: Team, env: Env): Promise<void> {
 		const key = `team:${team.id}`;
 		const previous = await env.WATCH_STATE.get<StoredState>(key, "json");
 		const state: StoredState = { version: 1, teamName: team.name, url: team.url, players, updatedAt: new Date().toISOString() };
-		if (!previous) {
+		if (isInitialState(previous)) {
 			await env.WATCH_STATE.put(key, JSON.stringify(state));
 			console.log("baseline saved", { teamName: team.name, url: team.url, players: players.length });
 			return;
@@ -33,7 +33,7 @@ async function runWithConcurrency<T>(items: T[], limit: number, task: (item: T) 
 	}));
 }
 
-export async function runMonitor(env: Env): Promise<void> {
+async function runMonitor(env: Env): Promise<void> {
 	const teams = await discoverTeams();
 	console.log("teams discovered", { count: teams.length });
 	await runWithConcurrency(teams, 3, (team) => monitorTeam(team, env));
@@ -41,8 +41,7 @@ export async function runMonitor(env: Env): Promise<void> {
 
 export default {
 	async fetch(request): Promise<Response> {
-		const url = new URL(request.url);
-		if (request.method !== "GET" || url.pathname !== "/") return new Response("Not Found", { status: 404 });
+		if (request.method !== "GET" || new URL(request.url).pathname !== "/") return new Response("Not Found", { status: 404 });
 		return Response.json({ status: "ok", service: "sj-league-watch" });
 	},
 	async scheduled(_controller, env, ctx): Promise<void> {

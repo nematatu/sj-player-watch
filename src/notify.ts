@@ -13,7 +13,7 @@ export function notificationBody(teamName: string, diff: PlayerDiff): string {
 export async function notify(topic: string, teamName: string, url: string, diff: PlayerDiff): Promise<void> {
 	const response = await fetch(`https://ntfy.sh/${encodeURIComponent(topic)}`, {
 		method: "POST",
-		headers: { Title: encodeURIComponent("S/Jリーグ 選手情報更新"), Click: url, Tags: "badminton", "Content-Type": "text/plain; charset=utf-8" },
+		headers: { Title: encodeURIComponent("S/Jリーグ 選手情報更新"), Click: url, "Content-Type": "text/plain; charset=utf-8" },
 		body: notificationBody(teamName, diff),
 		signal: AbortSignal.timeout(10_000),
 	});

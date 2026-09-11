@@ -5,7 +5,6 @@
 	"scripts": {
 		"deploy": "wrangler deploy",
 		"dev": "wrangler dev --test-scheduled",
-		"start": "wrangler dev --test-scheduled",
 		"types": "wrangler types",
 		"typecheck": "tsc --noEmit",
 		"test": "bun test"
